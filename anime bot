@@ -1,0 +1,83 @@
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import requests
+import random
+
+BOT_TOKEN = "7269219203:AAFI95eodlhrewzA-7IlmT9fVGPhvpCKC2U"
+API_ID = 29484304
+API_HASH = "53b687723c77668106677e6b35b7a0d7"
+
+app = Client("animechi_uzb_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+# --- Menyu tugmalari ---
+def menu_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💞 Sevgi", callback_data="love")],
+        [InlineKeyboardButton("👩‍🎨 Ayollar", callback_data="girls")],
+        [InlineKeyboardButton("👨 Erkaklar", callback_data="boys")],
+        [InlineKeyboardButton("😎 Profil uchun", callback_data="profile")],
+        [InlineKeyboardButton("🔞 18+ (Parol kerak)", callback_data="adult")]
+    ])
+
+# --- Yangi ishlaydigan API ---
+def get_anime_image(category):
+    api_map = {
+        "love": ["hug", "kiss", "neko", "waifu"],
+        "girls": ["waifu", "smile", "neko"],
+        "boys": ["smile", "wink"],
+        "profile": ["smile", "blush", "wave"],
+        "adult": ["boobs", "lewd", "nsfw_neko"]
+    }
+
+    api_category = random.choice(api_map[category])
+    url = f"https://nekos.best/api/v2/{api_category}"
+    try:
+        r = requests.get(url).json()
+        return r["results"][0]["url"]
+    except Exception as e:
+        print("API xatolik:", e)
+        return None
+
+# --- Start komandasi ---
+@app.on_message(filters.command("start"))
+async def start(_, message):
+    await message.reply_text(
+        "🌸 *ANIMECHI UZB BOT*\n\nBo‘limni tanlang:",
+        reply_markup=menu_keyboard()
+    )
+
+# --- Callback (bo‘lim tanlovi) ---
+@app.on_callback_query()
+async def callback_handler(_, query):
+    data = query.data
+
+    if data == "adult":
+        await query.message.reply_text("🔐 Parolni kiriting:")
+        return
+
+    await query.message.reply_text(f"📸 {data.title()} rasmlari tayyorlanmoqda...")
+
+    for _ in range(5):  # har safar 5 ta rasm yuboradi
+        image_url = get_anime_image(data)
+        if image_url:
+            await query.message.reply_photo(image_url)
+        else:
+            await query.message.reply_text("⚠️ Rasm topilmadi yoki yuklanmadi.")
+
+# --- Parol bilan kirish (18+) ---
+@app.on_message(filters.text)
+async def password_handler(_, message):
+    if message.text.strip() == "XXX":
+        await message.reply_text("✅ Parol to‘g‘ri! 18+ bo‘lim ochilmoqda...")
+        for _ in range(5):
+            image_url = get_anime_image("adult")
+            if image_url:
+                await message.reply_photo(image_url)
+            else:
+                await message.reply_text("⚠️ Rasm topilmadi.")
+    else:
+        if len(message.text) < 10:
+            await message.reply_text("🔑 Noto‘g‘ri parol yoki boshqa xabar.")
+
+print("✅ Bot ishga tushdi...")
+app.run()
